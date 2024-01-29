@@ -3,15 +3,13 @@ import { EthAPI } from "../eth.js"
 import { writeFileSync, readFileSync } from "fs"
 import { getEnv } from "../utils.js"
 import { toHexString, fromHexString, VectorCompositeType, ByteVectorType } from '@chainsafe/ssz'
+import { getBlockRootsTree } from "../block_roots.js"
 
 const SQLITE_DB = getEnv("SQLITE_DB")
 const BEACON_API = getEnv("BEACON_API")
 
 const db = new DB(SQLITE_DB)
 const eth = new EthAPI(BEACON_API)
-
-const byteVectorType = new ByteVectorType(32);
-const vectorType = new VectorCompositeType(byteVectorType, 8192);
 
 const calcPeriodFromSlot = (slot: number) => Math.floor(slot / 32 / 256);
 const getStartSlotOfPeriod = (period: number) => period * 8192
@@ -29,29 +27,14 @@ const downloadLatestSummaries = async ()  => {
     writeFileSync(`summaries_${latestPeriodOfSummaries}.json`, JSON.stringify(historicalSummaries))
 }
 
-const getBlockRootsTree = async (period: number) => {
-    const startSlot = getStartSlotOfPeriod(period)
-    const hasRange = await db.hasRange(startSlot, startSlot + 8192);
-    if (!hasRange) {
-        console.log("Range for period does not exist in db", period)
-    }
+const calcHashTreeRoot = (roots: string[]) => {
+    const byteVectorType = new ByteVectorType(32);
+    const vectorType = new VectorCompositeType(byteVectorType, 8192);
 
-    const blockRoots = await db.getBlockRoots(startSlot, startSlot + 8192);
-    const blockRootsMap: {[slot: number]: Uint8Array} = {}
-    for (const {slot, block_root} of blockRoots) {
-        blockRootsMap[slot] = fromHexString(block_root)
-    }
+    const rootsVectors = roots.map(r => byteVectorType.serialize(fromHexString(r)));
+    const hashTreeRoot = toHexString(vectorType.hashTreeRoot(rootsVectors))
 
-    const rootsParsed = []
-	for (let i = startSlot; i < startSlot + 8192; ++i) {
-		const root: Uint8Array = blockRootsMap[i] ? 
-			byteVectorType.serialize((blockRootsMap[i])) :
-			rootsParsed[rootsParsed.length - 1];
-
-		rootsParsed.push(root);
-	}
-
-    return rootsParsed
+    return hashTreeRoot
 }
 
 const main = async () => {
@@ -65,7 +48,6 @@ const main = async () => {
 
     for (let i = period; i > 0; i--) {
         const startSlot = getStartSlotOfPeriod(i)
-        console.log("start slot ", startSlot)
         const hasRange = await db.hasRange(startSlot, startSlot + 8192);
         if (!hasRange) {
             console.log("Range for period does not exist in db. Stopping", i)
@@ -75,20 +57,13 @@ const main = async () => {
             console.log("Range in db", i)
         }
 
-        const blockRootsTree = await getBlockRootsTree(i)
+        const blockRootsTree = await getBlockRootsTree(db, i)
+        const calculatedSummary = calcHashTreeRoot(blockRootsTree)
         const latestSummary = summaries.pop().blockSummaryRoot;
-
-        console.log(`Latest summary: ${latestSummary}`)
-        console.log(`Calculated summary: ${toHexString(vectorType.hashTreeRoot(blockRootsTree))}`)
+        
+        console.log(`Period ${i} block roots validity: ${latestSummary == calculatedSummary}`)
     }
 }
-
-// const main2 = async () => {
-//     await db.connect()
-//     const startSlot = getStartSlotOfPeriod(912)
-//     const rs =await db.newB(startSlot, startSlot + 8192)
-//     console.log(rs)
-// }
 
 // downloadLatestSummaries().catch(console.error)
 main()

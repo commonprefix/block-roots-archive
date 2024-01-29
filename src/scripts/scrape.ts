@@ -1,8 +1,8 @@
-import { EthAPI } from './eth.js'
-import { DB } from './db.js'
+import { EthAPI } from '../eth.js'
+import { DB } from '../db.js'
 import { toHexString, fromHexString, VectorCompositeType, ByteVectorType } from '@chainsafe/ssz'
-import { getEnv, sleep } from './utils.js'
-import { migrate } from './scripts/setupdb.js'
+import { getEnv, sleep } from '../utils.js'
+import { migrate } from './setupdb.js'
 
 const SQLITE_DB = getEnv("SQLITE_DB")
 const BEACON_API = getEnv("BEACON_API")

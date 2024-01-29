@@ -19,30 +19,10 @@ export class DB {
         return res as {slot: number, block_root: string}[]
     }
 
-    public async newB(fromSlot: number, toSlot: number) {
-        const sql = `
-        WITH RECURSIVE SlotSeries(slot) AS (
-            SELECT ? -- Start of your range
-            UNION ALL
-            SELECT slot + 1 FROM SlotSeries WHERE slot < ? - 1 -- End of your range
-        )
-        SELECT
-            ss.slot,
-            (
-                SELECT r.block_root
-                FROM roots r
-                WHERE r.slot <= ss.slot
-                ORDER BY r.slot DESC
-                LIMIT 1
-            ) AS root
-        FROM
-            SlotSeries ss
-        ORDER BY
-            ss.slot ASC;
-            `
-
-        const res = await this.db.all(sql, [fromSlot, toSlot])
-        return res as {slot: number, block_root: string}[]
+    public async getBlockRoot(slot: number) {
+        const sql = `SELECT block_root FROM roots WHERE slot <= ? ORDER BY slot DESC LIMIT 1`
+        const res: {block_root: string} = await this.db.get(sql, [slot]);
+        return res.block_root
     }
 
     public async getFirstSlot() {

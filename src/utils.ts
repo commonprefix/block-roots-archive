@@ -1,5 +1,4 @@
 import "dotenv/config"
-import * as deneb from '@lodestar/types/deneb'
 
 export const getEnv = (key: string, defaultValue ?: string): string => {
     if (!process.env[key] && !defaultValue) {
@@ -13,3 +12,6 @@ export const getEnv = (key: string, defaultValue ?: string): string => {
 export const sleep = (ms: number) => {
     return new Promise(resolve => setTimeout(resolve, ms));
 } 
+
+export const calcPeriodFromSlot = (slot: number) => Math.floor(slot / 32 / 256);
+export const getStartSlotOfPeriod = (period: number) => period * 8192
