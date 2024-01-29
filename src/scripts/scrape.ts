@@ -6,6 +6,7 @@ import { migrate } from './setupdb.js'
 
 const SQLITE_DB = getEnv("SQLITE_DB")
 const BEACON_API = getEnv("BEACON_API")
+const BACKFILL_MODE = getEnv("BACKFILL_MODE", "false") === "true"
 
 const db = new DB(SQLITE_DB)
 const eth = new EthAPI(BEACON_API)
@@ -42,7 +43,6 @@ const sync = async () => {
 	console.log(`[SYNC] Syncing from ${startSlot} up to ${headSlot}`)
 
 	for (let i = startSlot + 1; i <= headSlot; ++i) {
-		console.log("Processing", i)
 		const root = await eth.getBlockRoot(i)
 		if (root)  {
 			await db.insertBlockRoot(i, root);
@@ -52,12 +52,16 @@ const sync = async () => {
 		}
 	}
 
-	console.log("Syncing complete")
+	console.log("[SYNC] Syncing complete")
 }
 
 const backFill = async () => {
 	await db.connect()
 	let firstSlot = await db.getFirstSlot();
+	if (!firstSlot) {
+		firstSlot = await eth.getHeadSlot()
+		console.log("[BACKFILL] Database is empty. Will proceed with head:", firstSlot)
+	}
 
 	for (let i = firstSlot; i > 0; --i ) {
 		const root = await eth.getBlockRoot(i)
@@ -66,7 +70,7 @@ const backFill = async () => {
 		}
 
 		if (Number.isInteger(i / 32 / 256)) {
-			console.log("Finished backfilling period", i / 32 / 256)
+			console.log("[BACKFILL] Finished backfilling period", i / 32 / 256)
 		}
 	}
 }
@@ -74,6 +78,11 @@ const backFill = async () => {
 const main = async () => {
 	await db.connect()
 	await initialize()
+
+	if (BACKFILL_MODE) {
+		await backFill()
+		return
+	}
 
 	while (true) {
 		try {
@@ -88,4 +97,3 @@ const main = async () => {
 }
 
 main()
-// backFill()
