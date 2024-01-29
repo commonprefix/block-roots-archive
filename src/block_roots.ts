@@ -1,11 +1,12 @@
 import { getStartSlotOfPeriod } from "./utils.js";
 import { DB } from "./db.js";
 
-export const getBlockRootsTree = async (db: DB, period: number): Promise<string[]> => {
+export const getBlockRootsTree = async (db: DB, period: number): Promise<string[] | null> => {
     const startSlot = getStartSlotOfPeriod(period)
     const hasRange = await db.hasRange(startSlot, startSlot + 8192);
     if (!hasRange) {
         console.log("Range for period does not exist in db", period)
+        return null
     }
 
     const blockRoots = await db.getBlockRoots(startSlot, startSlot + 8192);
