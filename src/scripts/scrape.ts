@@ -87,5 +87,5 @@ const main = async () => {
 	}
 }
 
-// main()
-backFill()
+main()
+// backFill()
