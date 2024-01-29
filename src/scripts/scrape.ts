@@ -52,7 +52,7 @@ const sync = async () => {
 		}
 	}
 
-	console.log("[SYNC] Syncing complete")
+	console.log("[SYNC] syncing complete")
 }
 
 const backFill = async () => {
